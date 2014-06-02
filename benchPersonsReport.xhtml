@@ -1,0 +1,197 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Created by IntelliJ IDEA.
+  User: user7598
+  Date: 17.12.13
+  Time: 13:47
+-->
+<!DOCTYPE html
+        PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+        "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml"
+      xmlns:h="http://java.sun.com/jsf/html"
+      xmlns:p="http://primefaces.org/ui"
+      xmlns:f="http://java.sun.com/jsf/core"
+      xmlns:ui="http://java.sun.com/jsf/facelets"
+      xmlns:components="http://java.sun.com/jsf/composite/components">
+
+
+<h:head>
+</h:head>
+
+<h:body>
+    <f:metadata>
+        <f:event type="preRenderView" listener="#{authorisedUser.isAuthorised}"/>
+        <f:viewParam name="conversationUuid" value="#{benchPersonsReportTableController.conversationUuid}"/>
+        <f:viewParam name="backPath" value="#{benchPersonsReportTableController.backPath}"/>
+        <f:event type="preRenderView" listener="#{benchPersonsReportTableController.initModel}"/>
+    </f:metadata>
+    <ui:composition template="templates/layoutWithUserTemplate.xhtml">
+        <ui:define name="content">
+            <h:form id="form">
+                <p:growl id="msg"/>
+
+                <p:panel id="filterPanel" header="Фильтр" toggleable="true">
+                    <h:panelGrid id="panelGrid" columns="1">
+                        <h:outputText value="Дата начала периода: "/>
+                        <p:calendar   value="#{benchPersonsReportTableController.reportDateFilter.startDate}"
+                                      id="popupStartDateButtonCal"
+                                      navigator="true"
+                                      locale="ru"/>
+                        <h:outputText value="Дата окончания периода: "/>
+                        <p:calendar   value="#{benchPersonsReportTableController.reportDateFilter.endDate}"
+                                      id="popupEndDateButtonCal"
+                                      navigator="true"
+                                      locale="ru"/>
+                        <h:panelGroup>
+                            <p:commandButton value="Применить фильтр" id="applyFilter"
+                                             action="#{benchPersonsReportTableController.doFilter}"
+                                             oncomplete="wvBenchPersonsTable.filter()"
+                                             update="@form"
+                                             icon="ui-icon-search"/>
+                            &nbsp;
+                            <p:commandButton value="Назад" action="#{benchPersonsReportTableController.doBack}" immediate="true" icon="ui-icon-arrowrefresh-1-w"/>
+                        </h:panelGroup>
+                    </h:panelGrid>
+                </p:panel>
+
+                <p:blockUI block="filterPanel" trigger="applyFilter">
+                    Идёт формирование отчета<br />
+                    <h:graphicImage library="img" name="ajax-loader.gif"/>
+                </p:blockUI>
+
+                <p:dataTable id="benchPersonsTable" var="row" value="#{benchPersonsReportTableController.items}" rowKey="#{row.fio}"
+                             widgetVar="wvBenchPersonsTable"
+                             paginator="true" rows="#{uiTableHelper.paginatorRowsInPage}"
+                             paginatorTemplate="#{uiTableHelper.paginatorTemplate}"
+                             rowsPerPageTemplate="#{uiTableHelper.rowsPerPageTemplate}"
+                             paginatorPosition="top"
+                             filteredValue="#{uiTableHelper.filteredRows}"
+                             emptyMessage="#{uiTableHelper.emptyMessage}">
+                    <p:ajax event="rowToggle" listener="#{benchPersonsReportTableController.onRowToggle}"/>
+
+                    <f:facet name="header">
+                        <h:outputText value="Отчет по сотрудникам на скамейке за период" style="width: 260px"/>
+                    </f:facet>
+
+                    <p:column style="width:2%" exportable="false">
+                        <p:rowToggler/>
+                    </p:column>
+
+                    <p:column width="10"
+                              filterStyle="width: 300px"
+                              filterBy="FIO"
+                              filterMatchMode="contains">
+                    <f:facet name="header">
+                            <h:outputText value="Сотрудник" />
+                        </f:facet>
+                        <h:outputText value="#{row.FIO}"/>
+                    </p:column>
+
+                    <p:column width="10">
+                        <f:facet name="header">
+                            <h:outputText value="С какого числа на скамейке"/>
+                        </f:facet>
+                        <h:outputText value="#{dfmt.formatDate(row.benchDate)}" style="float: right">
+                            <f:convertNumber  groupingUsed="true"/>
+                        </h:outputText>
+                    </p:column>
+
+                    <p:column style="text-align: left" width="10">
+                        <f:facet name="header">
+                            <h:outputText value="Процент загрузки
+                            (#{dfmt.formatDate(benchPersonsReportTableController.reportDateFilter.endDate)})"/>
+                        </f:facet>
+                        <h:outputText value="#{row.currentLoadPercent}" style="float: right">
+                            <f:convertNumber  groupingUsed="true"/>
+                        </h:outputText>
+                    </p:column>
+
+                    <p:column style="text-align: left" width="10" sortBy="#{row.benchDays}">
+                        <f:facet name="header">
+                            <h:outputText value="Кол-во дней на скамейке"/>
+                        </f:facet>
+                        <h:outputText value="#{row.benchDays}" style="float: right">
+                            <f:convertNumber  groupingUsed="true"/>
+                        </h:outputText>
+                    </p:column>
+
+                    <p:column style="text-align: left" width="10" sortBy="#{row.price}" rendered="#{authorisedUserViewBean.currentUserIsRoot}">
+                        <f:facet name="header">
+                            <h:outputText value="Количество денег полученных на скамейке"/>
+                        </f:facet>
+                        <h:outputText value="#{row.price}" style="float: right">
+                            <f:convertNumber  groupingUsed="true" maxFractionDigits="0"/>
+                        </h:outputText>
+                    </p:column>
+
+                    <p:rowExpansion >
+
+                        <p:dataTable id="benchPersonProjectsTable" var="roww" value="#{benchPersonsReportTableController.reportItems}"
+                                     widgetVar="wvBenchPersonProjectsTable"
+                                     style="margin: 15px"
+                                     emptyMessage="Записей с указанными параметрами не обнаружено"
+                                >
+
+                            <f:facet name="header">
+                                <h:outputText value="Активности на которых сотрудник работал в этом периоде" style="width: 260px"/>
+                            </f:facet>
+
+                            <p:column width="150">
+                                <f:facet name="header">
+                                    <h:outputText value="Код и номер" />
+                                </f:facet>
+                                <h:outputText value="#{roww.caption}"/>
+                            </p:column>
+
+                            <p:column width="150">
+                                <f:facet name="header">
+                                    <h:outputText value="Количество рабочих дней" />
+                                </f:facet>
+                                <h:outputText value="#{roww.workDays}"/>
+                            </p:column>
+
+                            <p:column width="150">
+                                <f:facet name="header">
+                                    <h:outputText value="Процент занятости" />
+                                </f:facet>
+                                <h:outputText value="#{roww.loadPercent}"/>
+                            </p:column>
+
+                            <p:column width="150">
+                                <f:facet name="header">
+                                    <h:outputText value="Дата последней записи расходов за период" />
+                                </f:facet>
+                                <h:outputText value="#{dfmt.formatDate(roww.lastDateOnProject)}"/>
+                            </p:column>
+
+                        </p:dataTable>
+
+                    </p:rowExpansion>
+
+                    <f:facet name="footer">
+                        <p:toolbar>
+                            <p:toolbarGroup align="center">
+
+                                <p:commandButton id="returnButton" value="Назад" action="#{benchPersonsReportTableController.doBack}" icon="ui-icon-arrowrefresh-1-w" immediate="true"/>
+                            </p:toolbarGroup>
+                        </p:toolbar>
+                    </f:facet>
+                </p:dataTable>
+
+                <p:contextMenu for="benchPersonsTable" style="width: 240px">
+                    <p:menuitem value="Назад" title="Вернуться к списку клиентов"
+                                update="@form" icon="ui-icon-arrowrefresh-1-w" action="#{benchPersonsReportTableController.doBack}"
+                                immediate="true"/>
+
+                </p:contextMenu>
+
+                <components:tableExport id="cTableExport"
+                                         fileName="benchPersonsReport"
+                                         target=":form:benchPersonsTable"/>
+            </h:form>
+        </ui:define>
+    </ui:composition>
+</h:body>
+</html>
